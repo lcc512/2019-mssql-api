@@ -22,7 +22,6 @@ exports.list = async (req, res, next) => {
     const sqlStr = `select * from topics 
                     order by id desc 
                     limit ${(_page - 1) * _limit},${_limit} `
-    console.log(sqlStr)
 
     // 获取总条数
     const sqlStrCount = `select count(*) as topicsCount from topics`

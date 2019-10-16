@@ -16,7 +16,7 @@ app.use(session({
   saveIninitialized:false
 }))
 
-app.use(router)
+app.use('/api',router)
 
 // 统一处理500错误，用next方法，查看node最后讲的那些
 app.use((err,req,res,next)=>{

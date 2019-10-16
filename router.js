@@ -4,6 +4,9 @@ const userController = require('./controllers/user')
 const topicController = require('./controllers/topic')
 const commentController = require('./controllers/comment')
 const sessionController = require('./controllers/session')
+const inforEditController = require('./controllers/inforEdit')
+const chargesController = require('./controllers/charges')
+const workFlowController = require('./controllers/workFlow')
 const db = require('./models/db')
 
 
@@ -25,7 +28,7 @@ function checkLogin(req, res, next) {
 async function checkTopicUser(req, res, next) {
 
   try {
-    const {id} = req.params
+    const { id } = req.params
 
     // 要删除的话题属于当前登录的用户，则可删除，否则不允许
     const [topic] = await db.query(`select user_id from topics where id=${id}`)
@@ -53,13 +56,30 @@ async function checkTopicUser(req, res, next) {
 
 
 /*
-用户资源
+档案编辑列表页所需数据
  */
 router
-  .get('/users', userController.list)
-  .post('/users', userController.create)
-  .patch('/users/:id', userController.update)
-  .delete('/users/:id', userController.destroy)
+  .get('/inforEditList/', inforEditController.list)
+  .get('/inforEditApple/:id', inforEditController.apply)
+  .get('/inforEditMain/:id', inforEditController.infoMainSelect)
+  .patch('/inforEditMain/:id', inforEditController.infoMainUpdate)
+
+
+/*
+抄表算费页所需路由
+ */
+router
+  .get('/chargesInfoReady/', chargesController.list)//主页抄表本页
+  .get('/chargesInfoReady/:id', chargesController.chargeBkUserList)//某个抄表本下的用户列表页
+  .patch('/chargesInfoReady/:id', chargesController.changeBkStatus)//抄表状态切换
+  .post('/insertNewBkdataInfo/:id', chargesController.insertNewBkdataInfo)//生成bkdata数据
+  .patch('/updateNewBkdataInfo/', chargesController.updateNewBkdataInfo)//生成bkdata数据
+  .get('/calcuBkdataInfo/:id', chargesController.calcuBkdataInfo)//计算数据费用
+
+/**
+ * 工作单的编号
+ */
+router.get('/workflow/',workFlowController.one)//获取最新的workflow id编号
 
 /*
 话题资源
