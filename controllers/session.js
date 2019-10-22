@@ -1,19 +1,19 @@
-const md5=require('blueimp-md5')
-const db=require('../models/db')
+const md5 = require('blueimp-md5')
+const db = require('../models/db')
 
-exports.get=(req,res,next)=>{
+exports.get = (req, res, next) => {
 
-  const user=req.session.user
-  
-  // console.log(user)
+    const user = req.session.user
 
-  if(!user){
-    return res.status(401).json({
-      error:'未登录'
-    })
-  }
+    // console.log(user)
 
-  res.status(200).json(user)
+    if (!user) {
+        return res.status(401).json({
+            error: '未登录'
+        })
+    }
+
+    res.status(200).json(user)
 
 }
 
@@ -23,35 +23,35 @@ exports.get=(req,res,next)=>{
  * @param res
  * @param next
  */
-exports.create=async (req,res,next)=>{
+exports.create = async(req, res, next) => {
 
-  const body=req.body
-  body.password=md5(body.password)
+    const body = req.body
+        // body.password=md5(body.password)
 
-  const sqlStr = `select * from users where email='${body.email}' and password='${body.password}' 
+    const sqlStr = `select * from all_user where username='${body.username}' and password='${body.password}' 
   `
 
-  try{
-    var [user]=await db.query(sqlStr)
+    try {
+        var [user] = await db.query(sqlStr)
 
-    if(!user){
-      res.status(404).json({
-        error:'Invalid email or password'
-      })
+        if (!user) {
+            res.status(404).json({
+                error: 'Invalid username or password'
+            })
+        }
+
+        // 登录成功，返回当前用户信息
+        // req.session.user = user
+        res.status(201).json(user)
+
+    } catch (err) {
+        next(err)
     }
-
-    // 登录成功，返回当前用户信息
-    req.session.user=user
-    res.status(201).json(user)
-
-  }catch (err) {
-    next(err)
-  }
 }
-exports.destroy=(req,res,next)=>{
+exports.destroy = (req, res, next) => {
 
-  delete req.session.user
+    delete req.session.user
 
-  res.status(201).json({})
+    res.status(201).json({})
 
 }

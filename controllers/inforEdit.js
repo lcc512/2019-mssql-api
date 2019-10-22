@@ -36,58 +36,64 @@ exports.list = async (req, res, next) => {
     c_customer.STATUS_CODE,
     c_customer.STATUSLOCK
     FROM
-    c_customer ,
-    c_bargain ,
-    c_pt
+    c_customer
+    LEFT JOIN c_pt
+		ON c_customer.USERID = c_pt.USERID
+		LEFT JOIN c_bargain
+		ON c_customer.USERID = c_bargain.USERID
     WHERE
-    c_customer.USERID = c_bargain.USERID AND
-    c_bargain.USERID = c_pt.UserID 
     
     ${sqlwhere}
     
     GROUP BY USERID
     ORDER BY USERID desc
     limit ${(_page - 1) * _limit},${_limit} 
-    `
+    `;
 
     // 获取总条数
     const sqlStrCount = `
-    SELECT
-    COUNT(*) as totalNum 
-    FROM 
-        (
-        SELECT COUNT(DISTINCT c_customer.USERID)
-        FROM
-        c_customer ,
-        c_bargain ,
-        c_pt
-        WHERE
-        c_customer.USERID = c_bargain.USERID AND
-        c_bargain.USERID = c_pt.UserID
-        GROUP BY c_customer.USERID
-        )  
-      as totalTable`
+    SELECT COUNT(*) as allCountNum
+    FROM (
+    SELECT 
+          c_customer.USERID,
+          c_customer.USERNAME,
+          c_bargain.CONTRACT_NO,
+          c_pt.InceptMode,
+          c_pt.DemandValue,
+          c_customer.KIND_CODE,
+          c_pt.Cap,
+          c_customer.ACC_ADDR,
+          c_pt.PtName,
+          c_customer.STATUS_CODE,
+          c_customer.STATUSLOCK
+				FROM
+				c_customer 
+				LEFT JOIN c_pt
+				ON c_customer.USERID = c_pt.USERID
+				LEFT JOIN c_bargain
+        ON c_customer.USERID = c_bargain.USERID
+        
+        WHERE 
+
+        ${sqlwhere}
+
+        GROUP BY USERID
+        ORDER BY USERID desc) as tempTable`;
+
+    // console.log(sqlStr);
     
+    // console.log(sqlStrCount);
 
     const users = await db.query(sqlStr)
 
-    console.log(sqlStr);
-    
+    const [{allCountNum}] = await db.query(sqlStrCount)
 
-    // const res = await db.query(sqlStrCount)
-
-    // const [{totalNum}]= JSON.parse(JSON.stringify(res)) 
-
-
-    // console.log(totalNum);
-    
 
     res.status(200).json({
       users,
-      totalNum:385
+      allCountNum
     })
 
-    
 
   } catch (err) {
     next(err)
@@ -188,7 +194,6 @@ exports.infoMainUpdate = async (req, res, next) => {
     const customerInfo = body.customerInfo
     const ptInfo = body.ptInfo
     const { id } = req.params
-
 
     const sqlStrCus = `update
     c_customer

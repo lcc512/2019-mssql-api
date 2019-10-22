@@ -21,6 +21,7 @@ app.use('/api',router)
 // 统一处理500错误，用next方法，查看node最后讲的那些
 app.use((err,req,res,next)=>{
 
+  
   res.status(500).json({
     error:err.message
   })

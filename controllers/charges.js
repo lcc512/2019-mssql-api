@@ -1,17 +1,20 @@
 const db = require('../models/db')
 const utils = require('../models/utils')
 
+/**
+ * 公用方法，查询当前抄表本 在算费表 里最新的workflowid号(为复制上一次抄表数据准备)
+ * @param {string} bkid 抄表本编号
+ * @return {number} 流程号 
+ */
+const getNowWorkFlowIdForBk = async (bkid) => {
 
-// 公用方法，查询当前抄表本最新的workflowid号
-const getNowWorkFlowIdForBk=async (bkid) => {
-    
-    const sqlStr=`SELECT MAX(WORKFLOWID) as WORKFLOWID FROM pf_node_bkdatadet where BkID='${bkid}'`
+    const sqlStr = `SELECT MAX(WORKFLOWID) as WORKFLOWID FROM pf_node_bkdatadet where BkID='${bkid}'`
 
-    const [{WORKFLOWID}]=await db.query(sqlStr)
+    const [{ WORKFLOWID }] = await db.query(sqlStr)
 
     console.log(WORKFLOWID);
-    
-    return WORKFLOWID||0
+
+    return WORKFLOWID || 0
 
 }
 
@@ -95,11 +98,11 @@ exports.chargeBkUserList = async (req, res, next) => {
         // const sqlwhere = utils.getWhereMultiSearch(req.query)
 
         //抄表本id
-        const {id}=req.params
+        const { id } = req.params
 
         //当前抄表本id的最新流程号
-        const WORKFLOWID=await getNowWorkFlowIdForBk(id)
-        
+        const WORKFLOWID = await getNowWorkFlowIdForBk(id)
+
 
         const sqlStr = `SELECT
         pf_node_bkdatadet.WORKNO,
@@ -181,7 +184,7 @@ exports.chargeBkUserList = async (req, res, next) => {
         pf_node_bkdatadet.enterTotalnum
         FROM
         pf_node_bkdatadet  
-        where pf_node_bkdatadet.WORKFLOWID=${WORKFLOWID} and pf_node_bkdatadet.BkID='${id}'`
+        where pf_node_bkdatadet.WORKFLOWID=(SELECT WORKFLOWID from c_bk where BkID='${id}')`
 
         const infos = await db.query(sqlStr)
 
@@ -207,6 +210,13 @@ exports.insertNewBkdataInfo = async (req, res, next) => {
 
         const { workFlowId } = req.body
 
+        // console.log('---------workFlowId--------');
+
+        // console.log(workFlowId);
+
+
+        const oldWorkFlowId = await getNowWorkFlowIdForBk(bkId)
+
         // 之后通过其他方式确定当前从第几月的下一个月开始走的抄表
         const month = '09'
 
@@ -214,19 +224,22 @@ exports.insertNewBkdataInfo = async (req, res, next) => {
         INSERT INTO pf_node_bkdatadet 
         (USERID,WORKFLOWID,BkID,Yr,Mo,ProcType,WatchID,FACTORYNO,Kind_Code,preTinENum,	prePeakNum	,preFlatNum,	preValNum,	preTotalnum,	preUNtotalnum,InceptMode,Muilt) 
         SELECT DISTINCT USERID, ${workFlowId},BkID, Yr,Mo+1,ProcType,WatchID,FACTORYNO,Kind_Code,nowTinENum,	nowPeakNum	,nowFlatNum,	nowValNum,	nowTotalnum,	nowUNtotalnum,InceptMode,Muilt FROM pf_node_bkdatadet
-        WHERE MO='${month}' and BkID='${bkId}'`
+        WHERE WORKFLOWID='${oldWorkFlowId}'`
 
         // console.log(bkId, workFlowId);
 
         // console.log(sqlStr);
-        
-        const res = await db.query(sqlStr)
 
-        console.log(res)
+        await db.query(sqlStr)
+
+        // console.log(res)
 
         res.status(201).json()
 
     } catch (err) {
+
+        console.log(err);
+        
         next(err)
     }
 }
@@ -240,7 +253,7 @@ exports.updateNewBkdataInfo = async (req, res, next) => {
         const bkInfoList = body.bkInfo
 
 
-        const WORKFLOWID=await getNowWorkFlowIdForBk(bkInfoList[0].BkID)
+        const WORKFLOWID = await getNowWorkFlowIdForBk(bkInfoList[0].BkID)
 
         var resultBkArray = []
 
@@ -282,112 +295,42 @@ exports.updateNewBkdataInfo = async (req, res, next) => {
     }
 }
 
-// 业务申请页
-exports.apply = async (req, res, next) => {
-
-    try {
-
-        const { id } = req.params
-        const sqlStr = `SELECT
-    USERID,
-    USERNAME,
-    KIND_CODE,
-    STATUS_CODE,
-    STATUSLOCK,
-    ADDRESSCODE,
-    CONTACTPERSON,
-    CONTACTARCHIVESID,
-    CONTACTTEL,
-    TOLLMODE_CODE,
-    peakPr,
-    BANK_NO,
-    BANK_NAME_CODE,
-    SHIFT_NO
-    FROM
-    c_customer
-    where USERID='${id}'`
-        const topic = await db.query(sqlStr)
-
-        res.status(200).json(topic[0])
-
-    } catch (err) {
-        next(err)
-    }
-
-}
-
-// 档案编辑页
-exports.infoMainSelect = async (req, res, next) => {
-
-    try {
-
-        const { id } = req.params
-        const sqlStrCus = `SELECT
-    WORKNO,
-    USERID,
-    SUSERID,
-    USERNAME,
-    ADDRESSCODE,
-    CONTACTADDRESSCODE,
-    CONTACTPERSON,
-    CONTACTARCHIVESID,
-    loadLevel,
-    industryClassify,
-    tradeClassify1,
-    tradeClassify2
-    FROM
-    c_customer
-    where USERID='${id}'`
-
-        const sqlStrPt = `SELECT
-    UserID,
-    ScaleMode,
-    translossNum,
-    PrTParType,
-    ClassMode,
-    EkindCode,
-    Vlevel,
-    PR_ID,
-    PtType
-    FROM
-    c_pt
-    where USERID='${id}'`
-        const customerInfo = await db.query(sqlStrCus)
-        const ptInfo = await db.query(sqlStrPt)
-
-        res.status(200).json({
-            customerInfo: customerInfo[0],
-            ptInfo: ptInfo[0]
-        })
-
-    } catch (err) {
-        next(err)
-    }
-
-}
-
 //修改抄表本状态
 exports.changeBkStatus = async (req, res, next) => {
 
     try {
 
-        // console.log(req.body)
         const body = req.body
         const bkInfo = body.bkInfo
         const { id } = req.params
 
-        // console.log(req.body);
+        let sqlStr = ``
 
-        // console.log(id)
+        // 非备底时访问，WORKFLOWID为空时 执行的sql语句
+        if (!bkInfo.WORKFLOWID) {
+
+            sqlStr = `
+            update c_bk
+            set
+            ProcSt='${bkInfo.ProcSt}'
+            where BkID='${id}'`
+
+            // console.log(sqlStr);
 
 
-        const sqlStrCus = `
-        update c_bk
-        set
-        ProcSt='${bkInfo.ProcSt}'
-        where BkID='${id}'`
+        } else {
+            sqlStr = `
+            update c_bk
+            set
+            ProcSt='${bkInfo.ProcSt}',
+            WORKFLOWID='${bkInfo.WORKFLOWID}'
+            where BkID='${id}'`
+        }
 
-        const resultBk = await db.query(sqlStrCus)
+        // console.log(sqlStr);
+        
+
+        const resultBk = await db.query(sqlStr)
 
         res.status(201).json({
             resultBk: resultBk.affectedRows
@@ -395,6 +338,9 @@ exports.changeBkStatus = async (req, res, next) => {
 
 
     } catch (err) {
+
+        console.log(err);
+        
         next(err)
     }
 
@@ -411,10 +357,10 @@ exports.calcuBkdataInfo = async (req, res, next) => {
         const { id } = req.params
         // 获取当前要操作的用户id列表，和workflowid号
 
-        const WORKFLOWID=await getNowWorkFlowIdForBk(id)
+        const WORKFLOWID = await getNowWorkFlowIdForBk(id)
 
         // console.log(WORKFLOWID);
-        
+
 
         const sqlStr = `SELECT
         pf_node_bkdatadet.WORKNO,
@@ -496,12 +442,12 @@ exports.calcuBkdataInfo = async (req, res, next) => {
         pf_node_bkdatadet.enterTotalnum
         FROM
         pf_node_bkdatadet  
-        where pf_node_bkdatadet.WORKFLOWID='${WORKFLOWID}' and pf_node_bkdatadet.BkID='${id}'`
+        where pf_node_bkdatadet.WORKFLOWID='${WORKFLOWID}'`
 
         const infos = await db.query(sqlStr)
 
         // console.log(sqlStr);
-        
+
 
         // 如果用foreach 的异步会有问题
 
@@ -558,7 +504,7 @@ exports.calcuBkdataInfo = async (req, res, next) => {
             `
 
             // console.log(sqlStrCus);
-            
+
 
 
             let res = await db.query(sqlStrCus)
@@ -582,6 +528,7 @@ exports.calcuBkdataInfo = async (req, res, next) => {
 
 
     } catch (err) {
+
         next(err)
     }
 
